@@ -1,0 +1,129 @@
+.navbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--glass-border);
+  transition: all 0.3s ease;
+}
+
+.navbar-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.navbar-logo {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: 'Oswald', sans-serif;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--light);
+  transition: transform 0.3s;
+}
+
+.navbar-logo:hover { 
+  transform: scale(1.03); 
+}
+
+.logo-icon { 
+  color: var(--primary); 
+  font-size: 1.75rem; 
+}
+
+.logo-text .highlight { 
+  color: var(--primary); 
+}
+
+.desktop-menu {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.nav-link {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--gray);
+  font-weight: 500;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  transition: all 0.3s;
+  font-size: 0.95rem;
+}
+
+.nav-link:hover { 
+  color: var(--primary); 
+  background: rgba(0, 217, 255, 0.08); 
+}
+
+.btn-sm { 
+  padding: 0.5rem 1rem; 
+  font-size: 0.85rem; 
+}
+
+.btn-full { 
+  width: 100%; 
+  margin-bottom: 0.75rem; 
+  justify-content: center;
+}
+
+.mobile-menu-toggle {
+  display: none;
+  background: transparent;
+  color: var(--light);
+  font-size: 1.5rem;
+  padding: 0.5rem;
+  border-radius: 8px;
+  transition: background 0.3s;
+}
+
+.mobile-menu-toggle:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.mobile-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--glass-border);
+  border-bottom: 1px solid var(--glass-border);
+  animation: slideDown 0.3s ease-out;
+}
+
+.mobile-link {
+  color: var(--light);
+  font-size: 1.1rem;
+  padding: 1rem 0;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  font-weight: 500;
+  transition: color 0.3s;
+}
+
+.mobile-link:hover {
+  color: var(--primary);
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Mobile Responsiveness */
+@media (max-width: 768px) {
+  .desktop-menu { display: none; }
+  .mobile-menu-toggle { display: block; }
+  .navbar-container { padding: 0 1rem; }
+}

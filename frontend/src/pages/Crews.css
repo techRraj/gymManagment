@@ -1,0 +1,161 @@
+.crews-page {
+  min-height: 100vh;
+  background: linear-gradient(180deg, #0f0f1e 0%, #1a1a2e 100%);
+  padding: 6rem 0 4rem;
+}
+
+.crews-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 2rem;
+}
+
+.crews-actions {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 3rem;
+  flex-wrap: wrap;
+}
+
+.search-box {
+  flex: 1;
+  min-width: 300px;
+  position: relative;
+}
+
+.search-box svg {
+  position: absolute;
+  left: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--gray);
+}
+
+.search-box input {
+  width: 100%;
+  padding: 1rem 1rem 1rem 3rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(0, 217, 255, 0.2);
+  border-radius: 10px;
+  color: var(--light);
+  font-size: 1rem;
+}
+
+.search-box input:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+.crews-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+  gap: 2rem;
+}
+
+.crew-card-large {
+  background: var(--card-bg);
+  border: 1px solid rgba(0, 217, 255, 0.1);
+  border-radius: 20px;
+  padding: 2rem;
+  transition: all 0.3s;
+}
+
+.crew-card-large:hover {
+  border-color: var(--primary);
+  transform: translateY(-5px);
+  box-shadow: 0 20px 40px rgba(0, 217, 255, 0.15);
+}
+
+.crew-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+}
+
+.crew-card-header h3 {
+  color: var(--light);
+  font-size: 1.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.crew-status {
+  display: inline-block;
+  background: rgba(0, 217, 255, 0.1);
+  color: var(--primary);
+  padding: 0.4rem 0.8rem;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.crew-icon {
+  width: 50px;
+  height: 50px;
+  background: rgba(0, 217, 255, 0.1);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--primary);
+  font-size: 1.5rem;
+}
+
+.crew-desc {
+  color: var(--gray);
+  margin-bottom: 1.5rem;
+  line-height: 1.6;
+}
+
+.crew-meta {
+  display: flex;
+  gap: 1.5rem;
+  margin-bottom: 1rem;
+  color: var(--gray);
+  font-size: 0.95rem;
+}
+
+.crew-meta span {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.crew-goals {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.5rem;
+}
+
+.crew-members-preview {
+  display: flex;
+  gap: -10px;
+  margin-bottom: 1.5rem;
+}
+
+.crew-members-preview img {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 2px solid var(--dark);
+  margin-left: -10px;
+}
+
+.crew-members-preview img:first-child {
+  margin-left: 0;
+}
+
+@media (max-width: 768px) {
+  .crews-container {
+    padding: 0 1rem;
+  }
+
+  .crews-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .search-box {
+    min-width: 100%;
+  }
+}
