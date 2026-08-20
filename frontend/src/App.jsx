@@ -29,12 +29,11 @@ function App() {
         <Route path="/" element={<Landing />} />
         <Route path="/login" element={user ? <Navigate to="/dashboard" /> : <Login />} />
         <Route path="/signup" element={user ? <Navigate to="/dashboard" /> : <Signup />} />
-        <Route path="/dashboard" element={user ? <Dashboard /> : <Navigate to="/login" />} />
         
-        {/* Fixed: Added both /profile and /profile/:id routes */}
+        {/* Protected Routes - Only accessible if user is logged in */}
+        <Route path="/dashboard" element={user ? <Dashboard /> : <Navigate to="/login" />} />
         <Route path="/profile" element={user ? <Profile /> : <Navigate to="/login" />} />
         <Route path="/profile/:id" element={user ? <Profile /> : <Navigate to="/login" />} />
-        
         <Route path="/matches" element={user ? <Matches /> : <Navigate to="/login" />} />
         <Route path="/crews" element={user ? <Crews /> : <Navigate to="/login" />} />
       </Routes>
