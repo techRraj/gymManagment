@@ -10,6 +10,7 @@ const Matches = () => {
   const [requests, setRequests] = useState({ received: [], sent: [] });
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
+  const [processingId, setProcessingId] = useState(null); // Prevents double-clicks
 
   useEffect(() => {
     fetchData();
@@ -22,8 +23,8 @@ const Matches = () => {
         api.get('/matches/suggestions'),
         api.get('/matches/requests'),
       ]);
-      setMatches(matchesRes.data.matches);
-      setRequests(requestsRes.data);
+      setMatches(matchesRes.data.matches || []);
+      setRequests(requestsRes.data || { received: [], sent: [] });
     } catch (error) {
       toast.error('Failed to load data');
     } finally {
@@ -42,12 +43,22 @@ const Matches = () => {
   };
 
   const handleRequest = async (requestId, status) => {
+    setProcessingId(requestId); // Show loading state on button
     try {
       await api.put(`/matches/request/${requestId}`, { status });
       toast.success(`Request ${status === 'accepted' ? 'accepted' : 'rejected'}!`);
-      fetchData();
+      
+      // Optimistically update UI immediately so buttons disappear instantly
+      setRequests(prev => ({
+        ...prev,
+        received: prev.received.map(r => r._id === requestId ? { ...r, status } : r)
+      }));
+      
+      fetchData(); // Refresh in background to ensure sync
     } catch (error) {
       toast.error('Failed to update request');
+    } finally {
+      setProcessingId(null);
     }
   };
 
@@ -57,10 +68,9 @@ const Matches = () => {
     return true;
   });
 
-  // Filter out accepted/rejected requests from display
+  // STRICTLY filter only pending requests
   const pendingReceived = requests.received.filter(r => r.status === 'pending');
-  const pendingSent = requests.sent.filter(r => r.status === 'pending');
-  const acceptedRequests = [...requests.received, ...requests.sent].filter(r => r.status === 'accepted');
+  const acceptedMatches = requests.received.filter(r => r.status === 'accepted');
 
   return (
     <div className="matches-page">
@@ -70,14 +80,13 @@ const Matches = () => {
           <p>Connect with gym enthusiasts who match your goals and schedule</p>
         </div>
 
-        {/* Filter Tabs */}
         <div className="filter-tabs">
           <button className={`filter-tab ${filter === 'all' ? 'active' : ''}`} onClick={() => setFilter('all')}>All Matches</button>
           <button className={`filter-tab ${filter === 'high' ? 'active' : ''}`} onClick={() => setFilter('high')}>High Match (70%+)</button>
           <button className={`filter-tab ${filter === 'medium' ? 'active' : ''}`} onClick={() => setFilter('medium')}>Medium Match (40%+)</button>
         </div>
 
-        {/* Pending Received Requests */}
+        {/* Pending Received Requests (Only shows if status === 'pending') */}
         {pendingReceived.length > 0 && (
           <section className="requests-section">
             <h2>Pending Requests ({pendingReceived.length})</h2>
@@ -85,16 +94,24 @@ const Matches = () => {
               {pendingReceived.map(request => (
                 <div key={request._id} className="request-card">
                   <div className="request-info">
-                    <h3>{request.sender.name}</h3>
+                    <h3>{request.sender?.name || 'Unknown User'}</h3>
                     <p>{request.message || 'No message'}</p>
                     <span className="match-score">{request.matchScore}% match</span>
                   </div>
                   <div className="request-actions">
-                    <button className="btn btn-success" onClick={() => handleRequest(request._id, 'accepted')}>
-                      <FaCheck /> Accept
+                    <button 
+                      className="btn btn-success" 
+                      onClick={() => handleRequest(request._id, 'accepted')}
+                      disabled={processingId === request._id}
+                    >
+                      {processingId === request._id ? '...' : <><FaCheck /> Accept</>}
                     </button>
-                    <button className="btn btn-danger" onClick={() => handleRequest(request._id, 'rejected')}>
-                      <FaTimes /> Reject
+                    <button 
+                      className="btn btn-danger" 
+                      onClick={() => handleRequest(request._id, 'rejected')}
+                      disabled={processingId === request._id}
+                    >
+                      {processingId === request._id ? '...' : <><FaTimes /> Reject</>}
                     </button>
                   </div>
                 </div>
@@ -104,25 +121,19 @@ const Matches = () => {
         )}
 
         {/* Accepted Matches */}
-        {acceptedRequests.length > 0 && (
+        {acceptedMatches.length > 0 && (
           <section className="requests-section">
-            <h2>Your Matches 🎉</h2>
+            <h2>Your Active Matches 🎉</h2>
             <div className="requests-grid">
-              {acceptedRequests.map(request => {
-                const otherUser = request.sender._id === request.receiver._id ? request.sender : (request.sender._id !== request.receiver._id ? request.sender : request.receiver);
-                const isMe = request.receiver._id === request.sender._id;
-                const partner = request.sender._id !== request.receiver._id ? (request.sender.name === otherUser.name ? request.receiver : request.sender) : otherUser;
-                
-                return (
-                  <div key={request._id} className="request-card accepted">
-                    <div className="request-info">
-                      <h3>{partner.name}</h3>
-                      <p>Location: {partner.location?.city || 'UK'}</p>
-                      <span className="match-score accepted">✓ Matched</span>
-                    </div>
+              {acceptedMatches.map(request => (
+                <div key={request._id} className="request-card accepted">
+                  <div className="request-info">
+                    <h3>{request.sender?.name || 'Unknown User'}</h3>
+                    <p>Location: {request.sender?.location?.city || 'UK'}</p>
+                    <span className="match-score accepted-badge">✓ Matched</span>
                   </div>
-                );
-              })}
+                </div>
+              ))}
             </div>
           </section>
         )}
@@ -141,7 +152,7 @@ const Matches = () => {
             <div className="matches-grid">
               {filteredMatches.map((match, index) => {
                 const existingRequest = [...requests.received, ...requests.sent].find(
-                  r => r.sender._id === match.user._id || r.receiver._id === match.user._id
+                  r => r.sender?._id === match.user._id || r.receiver?._id === match.user._id
                 );
                 
                 return (
@@ -153,13 +164,13 @@ const Matches = () => {
                     transition={{ delay: index * 0.05 }}
                   >
                     <div className="profile-header">
-                      <img src={match.user.avatar || 'https://i.imgur.com/default.png'} alt={match.user.name} />
+                      <img src={match.user.avatar || `https://ui-avatars.com/api/?name=${match.user.name}&background=00d9ff&color=fff`} alt={match.user.name} />
                       <div className="match-badge">{match.score}%</div>
                     </div>
                     
                     <div className="profile-info">
                       <h3>{match.user.name}</h3>
-                      <p className="location"><FaMapMarkerAlt /> {match.user.location?.city}</p>
+                      <p className="location"><FaMapMarkerAlt /> {match.user.location?.city || 'UK'}</p>
                       
                       <div className="profile-details">
                         <div className="detail"><FaDumbbell /> {match.user.experience}</div>
@@ -169,8 +180,6 @@ const Matches = () => {
                       <div className="goals">
                         {match.user.goals?.map(goal => <span key={goal} className="goal-tag">{goal}</span>)}
                       </div>
-
-                      {match.user.bio && <p className="bio">{match.user.bio.substring(0, 100)}...</p>}
 
                       <div className="actions">
                         {existingRequest ? (
