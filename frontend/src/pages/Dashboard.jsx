@@ -123,7 +123,11 @@ const Dashboard = () => {
                 <Link to={`/profile/${match.user._id}`} key={match.user._id} className="match-card glass">
                   <div className="match-header">
                     <img 
-                      src={match.user.avatar || `https://ui-avatars.com/api/?name=${match.user.name}&background=00d9ff&color=fff`} 
+                    src={
+  match.user.avatar?.includes('/uploads/') 
+    ? `${(import.meta.env.VITE_API_URL || 'http://localhost:5000/api').replace(/\/api$/, '')}${match.user.avatar}` 
+    : (match.user.avatar || `https://ui-avatars.com/api/?name=${match.user.name}&background=00d9ff&color=fff&size=200`)
+}
                       alt={match.user.name} 
                       className="match-avatar" 
                     />

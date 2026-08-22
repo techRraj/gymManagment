@@ -7,28 +7,33 @@ import toast from 'react-hot-toast';
 import './Profile.css';
 
 // Helper to get avatar URL (handles local uploads and external URLs)
+// Helper to get avatar URL (handles local uploads and external URLs)
 const getAvatarUrl = (user) => {
   if (!user) return `https://ui-avatars.com/api/?name=User&background=00d9ff&color=fff&size=200`;
   
-  console.log('️ Getting avatar for user:', user.name, '| Avatar field:', user.avatar);
-  
-  if (user?.avatar && user.avatar.trim() !== '') {
-    // If it's a local upload path (starts with /uploads/)
-    if (user.avatar.startsWith('/uploads/')) {
-      const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-      const fullUrl = `${backendUrl}${user.avatar}`;
-      console.log('🔗 Constructed local URL:', fullUrl);
-      return fullUrl;
+  if (user?.avatar && typeof user.avatar === 'string' && user.avatar.trim() !== '') {
+    // Check if it's a local upload path (with or without leading slash)
+    if (user.avatar.includes('/uploads/') || user.avatar.startsWith('uploads/')) {
+      // Get the API URL from env, or fallback to localhost
+      const apiBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+      
+      // Strip '/api' from the end to get the base backend URL for static files
+      const backendBaseUrl = apiBaseUrl.replace(/\/api$/, '').replace(/\/api\//, '/');
+      
+      // Ensure the path starts with exactly one slash
+      const cleanPath = user.avatar.startsWith('/') ? user.avatar : `/${user.avatar}`;
+      
+      return `${backendBaseUrl}${cleanPath}`;
     }
-    // It's already a full external URL
-    console.log('🔗 Using external URL:', user.avatar);
-    return user.avatar;
+    
+    // If it's already a full external URL (http or https), return it as is
+    if (user.avatar.startsWith('http')) {
+      return user.avatar;
+    }
   }
   
   // Fallback to initials avatar
-  const fallbackUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || 'User')}&background=00d9ff&color=fff&size=200&bold=true`;
-  console.log('🔗 Using fallback URL:', fallbackUrl);
-  return fallbackUrl;
+  return `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || 'User')}&background=00d9ff&color=fff&size=200&bold=true`;
 };
 
 const Profile = () => {
