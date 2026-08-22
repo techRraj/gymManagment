@@ -57,7 +57,7 @@ const Signup = () => {
     });
   };
 
-  const handleSubmit = async (e) => {
+   const handleSubmit = async (e) => {
     e.preventDefault();
     
     if (formData.password !== formData.confirmPassword) {
@@ -67,14 +67,21 @@ const Signup = () => {
 
     setLoading(true);
     try {
-      await signup({
+      const signupData = {
         ...formData,
         location: { city: formData.city, postcode: formData.postcode },
-      });
-      toast.success('Account created! Welcome to GymBrosUK 🎉');
+      };
+      
+      // Remove confirmPassword before sending
+      delete signupData.confirmPassword;
+      
+      await signup(signupData);
+      toast.success('Account created! Welcome to GymBrosUK ');
       navigate('/dashboard');
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Signup failed');
+      console.error('Signup error:', error);
+      const errorMsg = error.response?.data?.message || 'Signup failed. Please try again.';
+      toast.error(errorMsg);
     } finally {
       setLoading(false);
     }

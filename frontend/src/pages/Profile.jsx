@@ -2,11 +2,11 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
-import { FaMapMarkerAlt, FaDumbbell, FaEdit, FaSave, FaTimes, FaCamera, FaPaperPlane, FaEnvelope } from 'react-icons/fa';
+import { FaMapMarkerAlt, FaDumbbell, FaEdit, FaSave, FaTimes, FaCamera, FaPaperPlane, FaEnvelope, FaCheck, FaTimes as FaTimesIcon } from 'react-icons/fa';
 import toast from 'react-hot-toast';
 import './Profile.css';
 
-// Helper to get avatar URL (handles local uploads and external URLs)
+// Helper to get avatar URL
 const getAvatarUrl = (user) => {
   if (!user) return `https://ui-avatars.com/api/?name=User&background=00d9ff&color=fff&size=200`;
   
@@ -34,7 +34,8 @@ const Profile = () => {
   const [loading, setLoading] = useState(true);
   const [selectedFile, setSelectedFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState('');
-  const [isSending, setIsSending] = useState(false); // ✨ NEW: Loading state for sending requests
+  const [isSending, setIsSending] = useState(false);
+  const [matchRequests, setMatchRequests] = useState([]);
   
   const [formData, setFormData] = useState({
     name: '', bio: '', avatar: '', location: { city: '', postcode: '' },
@@ -45,8 +46,14 @@ const Profile = () => {
   const isOwnProfile = profileId === currentUser?._id;
 
   useEffect(() => {
-    if (profileId) fetchProfile();
-    else setLoading(false);
+    if (profileId) {
+      fetchProfile();
+      if (!isOwnProfile) {
+        fetchMatchRequests();
+      }
+    } else {
+      setLoading(false);
+    }
   }, [profileId]);
 
   const fetchProfile = async () => {
@@ -69,6 +76,20 @@ const Profile = () => {
       console.error('Profile fetch error:', error);
       toast.error('Failed to load profile');
       setLoading(false);
+    }
+  };
+
+  const fetchMatchRequests = async () => {
+    try {
+      const res = await api.get('/matches/requests');
+      // Filter requests for this specific user
+      const relevantRequests = [
+        ...res.data.received.filter(r => r.sender._id === profileId),
+        ...res.data.sent.filter(r => r.receiver._id === profileId)
+      ];
+      setMatchRequests(relevantRequests);
+    } catch (error) {
+      console.error('Fetch requests error:', error);
     }
   };
 
@@ -114,7 +135,6 @@ const Profile = () => {
     }
   };
 
-  // ✨ NEW: Function to send a match request
   const handleSendRequest = async () => {
     if (!profileId || isOwnProfile) return;
     
@@ -124,14 +144,45 @@ const Profile = () => {
         receiverId: profileId,
         message: `Hey ${user.name}, I saw your profile and would love to train together!` 
       });
-      toast.success('Match request sent successfully! 💪');
+      toast.success('Match request sent! Check back for their response. 💪');
+      fetchMatchRequests(); // Refresh to show the sent request
     } catch (error) {
       console.error('Send request error:', error);
-      const errorMsg = error.response?.data?.message || 'Failed to send request. You may have already sent one.';
+      const errorMsg = error.response?.data?.message || 'Request already exists or failed to send.';
       toast.error(errorMsg);
     } finally {
       setIsSending(false);
     }
+  };
+
+  const handleAcceptRequest = async (requestId) => {
+    try {
+      await api.put(`/matches/request/${requestId}`, { status: 'accepted' });
+      toast.success('Match accepted! You can now train together! 🎉');
+      fetchMatchRequests();
+    } catch (error) {
+      console.error('Accept error:', error);
+      toast.error('Failed to accept request');
+    }
+  };
+
+  const handleRejectRequest = async (requestId) => {
+    try {
+      await api.put(`/matches/request/${requestId}`, { status: 'rejected' });
+      toast.success('Request rejected');
+      fetchMatchRequests();
+    } catch (error) {
+      console.error('Reject error:', error);
+      toast.error('Failed to reject request');
+    }
+  };
+
+  const getRequestStatus = () => {
+    const request = matchRequests.find(r => 
+      (r.sender._id === profileId && r.receiver._id === currentUser?._id) ||
+      (r.receiver._id === profileId && r.sender._id === currentUser?._id)
+    );
+    return request ? request.status : null;
   };
 
   if (loading) {
@@ -147,6 +198,8 @@ const Profile = () => {
     return <div className="error-screen">User not found</div>;
   }
 
+  const requestStatus = getRequestStatus();
+
   return (
     <div className="profile-page">
       <div className="profile-container">
@@ -158,14 +211,7 @@ const Profile = () => {
           
           <div className="profile-header-content">
             <div className="avatar-section">
-              <img 
-                src={getAvatarUrl(user)} 
-                alt={user.name}
-                onError={(e) => {
-                  e.target.onerror = null;
-                  e.target.src = getAvatarUrl({ name: user.name });
-                }}
-              />
+              <img src={getAvatarUrl(user)} alt={user.name} onError={(e) => { e.target.onerror = null; e.target.src = getAvatarUrl({ name: user.name }); }} />
             </div>
             
             <div className="header-info">
@@ -178,11 +224,8 @@ const Profile = () => {
             </div>
 
             {isOwnProfile && (
-              <button 
-                className={`btn ${isEditing ? 'btn-success' : 'btn-primary'}`}
-                onClick={() => setIsEditing(!isEditing)}
-              >
-                {isEditing ? <><FaSave /> Save Changes</> : <><FaEdit /> Edit Profile</>}
+              <button className={`btn ${isEditing ? 'btn-success' : 'btn-primary'}`} onClick={() => setIsEditing(!isEditing)}>
+                {isEditing ? <><FaSave /> Save</> : <><FaEdit /> Edit Profile</>}
               </button>
             )}
           </div>
@@ -289,21 +332,27 @@ const Profile = () => {
                   <p>{user.bio || 'No bio added yet. Click "Edit Profile" to tell us about yourself!'}</p>
                 </div>
 
-                {/* ✨ FIXED: Action buttons now actually work! */}
                 {!isOwnProfile && (
                   <div className="action-buttons">
-                    <button 
-                      className="btn btn-primary btn-lg" 
-                      onClick={handleSendRequest}
-                      disabled={isSending}
-                      style={{ opacity: isSending ? 0.7 : 1, cursor: isSending ? 'not-allowed' : 'pointer' }}
-                    >
-                      {isSending ? 'Sending...' : <><FaPaperPlane /> Send Match Request</>}
-                    </button>
-                    <button 
-                      className="btn btn-secondary btn-lg"
-                      onClick={() => toast.info('Direct messaging is coming soon! 🚀')}
-                    >
+                    {requestStatus === 'pending' && matchRequests.some(r => r.sender._id === currentUser?._id && r.receiver._id === profileId) ? (
+                      <button className="btn btn-secondary btn-lg" disabled>
+                         Request Pending
+                      </button>
+                    ) : requestStatus === 'accepted' ? (
+                      <button className="btn btn-success btn-lg" disabled>
+                        <FaCheck /> Matched!
+                      </button>
+                    ) : requestStatus === 'rejected' ? (
+                      <button className="btn btn-danger btn-lg" disabled>
+                        <FaTimesIcon /> Declined
+                      </button>
+                    ) : (
+                      <button className="btn btn-primary btn-lg" onClick={handleSendRequest} disabled={isSending}>
+                        {isSending ? 'Sending...' : <><FaPaperPlane /> Send Match Request</>}
+                      </button>
+                    )}
+                    
+                    <button className="btn btn-secondary btn-lg" onClick={() => toast('Messaging feature coming soon! 🚀')}>
                       <FaEnvelope /> Message
                     </button>
                   </div>
