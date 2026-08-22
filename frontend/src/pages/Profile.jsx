@@ -2,43 +2,31 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
-import { FaMapMarkerAlt, FaDumbbell, FaEdit, FaSave, FaTimes, FaCamera } from 'react-icons/fa';
+import { FaMapMarkerAlt, FaDumbbell, FaEdit, FaSave, FaTimes, FaCamera, FaPaperPlane, FaEnvelope } from 'react-icons/fa';
 import toast from 'react-hot-toast';
 import './Profile.css';
 
-// Helper to get avatar URL (handles local uploads and external URLs)
 // Helper to get avatar URL (handles local uploads and external URLs)
 const getAvatarUrl = (user) => {
   if (!user) return `https://ui-avatars.com/api/?name=User&background=00d9ff&color=fff&size=200`;
   
   if (user?.avatar && typeof user.avatar === 'string' && user.avatar.trim() !== '') {
-    // Check if it's a local upload path (with or without leading slash)
     if (user.avatar.includes('/uploads/') || user.avatar.startsWith('uploads/')) {
-      // Get the API URL from env, or fallback to localhost
       const apiBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-      
-      // Strip '/api' from the end to get the base backend URL for static files
       const backendBaseUrl = apiBaseUrl.replace(/\/api$/, '').replace(/\/api\//, '/');
-      
-      // Ensure the path starts with exactly one slash
       const cleanPath = user.avatar.startsWith('/') ? user.avatar : `/${user.avatar}`;
-      
       return `${backendBaseUrl}${cleanPath}`;
     }
-    
-    // If it's already a full external URL (http or https), return it as is
     if (user.avatar.startsWith('http')) {
       return user.avatar;
     }
   }
-  
-  // Fallback to initials avatar
   return `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || 'User')}&background=00d9ff&color=fff&size=200&bold=true`;
 };
 
 const Profile = () => {
   const { id } = useParams();
-  const { user: currentUser, updateUser } = useAuth();
+  const { user: currentUser } = useAuth();
   const fileInputRef = useRef(null);
   
   const [user, setUser] = useState(null);
@@ -46,28 +34,19 @@ const Profile = () => {
   const [loading, setLoading] = useState(true);
   const [selectedFile, setSelectedFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState('');
+  const [isSending, setIsSending] = useState(false); // ✨ NEW: Loading state for sending requests
+  
   const [formData, setFormData] = useState({
-    name: '',
-    bio: '',
-    avatar: '',
-    location: { city: '', postcode: '' },
-    gymName: '',
-    trainingVolume: '',
-    experience: '',
-    goals: [],
-    availability: []
+    name: '', bio: '', avatar: '', location: { city: '', postcode: '' },
+    gymName: '', trainingVolume: '', experience: '', goals: [], availability: []
   });
 
-  // Determine which profile to show
   const profileId = id === 'me' || !id ? currentUser?._id : id;
   const isOwnProfile = profileId === currentUser?._id;
 
   useEffect(() => {
-    if (profileId) {
-      fetchProfile();
-    } else {
-      setLoading(false);
-    }
+    if (profileId) fetchProfile();
+    else setLoading(false);
   }, [profileId]);
 
   const fetchProfile = async () => {
@@ -79,15 +58,10 @@ const Profile = () => {
       
       setUser(userData);
       setFormData({
-        name: userData.name || '',
-        bio: userData.bio || '',
-        avatar: userData.avatar || '',
-        location: userData.location || { city: '', postcode: '' },
-        gymName: userData.gymName || '',
-        trainingVolume: userData.trainingVolume || '',
-        experience: userData.experience || '',
-        goals: userData.goals || [],
-        availability: userData.availability || []
+        name: userData.name || '', bio: userData.bio || '', avatar: userData.avatar || '',
+        location: userData.location || { city: '', postcode: '' }, gymName: userData.gymName || '',
+        trainingVolume: userData.trainingVolume || '', experience: userData.experience || '',
+        goals: userData.goals || [], availability: userData.availability || []
       });
       setPreviewUrl(getAvatarUrl(userData));
       setLoading(false);
@@ -98,7 +72,7 @@ const Profile = () => {
     }
   };
 
-   const handleFileChange = (e) => {
+  const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (file) {
       if (file.size > 5 * 1024 * 1024) {
@@ -106,14 +80,15 @@ const Profile = () => {
         return;
       }
       if (!file.type.startsWith('image/')) {
-        toast.error('Please select an image file (JPG, PNG, etc.)');
+        toast.error('Please select an image file');
         return;
       }
       setSelectedFile(file);
-      setPreviewUrl(URL.createObjectURL(file)); // Instant preview
+      setPreviewUrl(URL.createObjectURL(file));
     }
   };
-    const handleUpdate = async (e) => {
+
+  const handleUpdate = async (e) => {
     e.preventDefault();
     try {
       const data = new FormData();
@@ -125,19 +100,9 @@ const Profile = () => {
       data.append('city', formData.location?.city || '');
       data.append('postcode', formData.location?.postcode || '');
       
-      if (selectedFile) {
-        data.append('avatar', selectedFile);
-      }
+      if (selectedFile) data.append('avatar', selectedFile);
 
-      // 1. Send the update to the backend
-      const response = await api.put('/users/profile', data, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
-      
-      // 2. ✨ NEW: Update the global context with the fresh data from the backend
-      if (updateUser && response.data.user) {
-        updateUser(response.data.user);
-      }
+      await api.put('/users/profile', data, { headers: { 'Content-Type': 'multipart/form-data' } });
       
       toast.success('Profile updated successfully! 💪');
       setIsEditing(false);
@@ -145,8 +110,27 @@ const Profile = () => {
       fetchProfile();
     } catch (error) {
       console.error('Update error:', error);
-      const errorMsg = error.response?.data?.message || 'Failed to update profile';
+      toast.error(error.response?.data?.message || 'Failed to update profile');
+    }
+  };
+
+  // ✨ NEW: Function to send a match request
+  const handleSendRequest = async () => {
+    if (!profileId || isOwnProfile) return;
+    
+    setIsSending(true);
+    try {
+      await api.post('/matches/request', { 
+        receiverId: profileId,
+        message: `Hey ${user.name}, I saw your profile and would love to train together!` 
+      });
+      toast.success('Match request sent successfully! 💪');
+    } catch (error) {
+      console.error('Send request error:', error);
+      const errorMsg = error.response?.data?.message || 'Failed to send request. You may have already sent one.';
       toast.error(errorMsg);
+    } finally {
+      setIsSending(false);
     }
   };
 
@@ -169,10 +153,7 @@ const Profile = () => {
         {/* Header Section */}
         <div className="profile-header-section">
           <div className="cover-photo">
-            <img 
-              src="https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=1920&h=600&fit=crop" 
-              alt="Cover" 
-            />
+            <img src="https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=1920&h=600&fit=crop" alt="Cover" />
           </div>
           
           <div className="profile-header-content">
@@ -181,28 +162,18 @@ const Profile = () => {
                 src={getAvatarUrl(user)} 
                 alt={user.name}
                 onError={(e) => {
-                  console.error('❌ Failed to load header avatar:', e.target.src);
-                  e.target.onerror = null; // Prevent infinite loop
-                  e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || 'User')}&background=00d9ff&color=fff&size=200&bold=true`;
-                }}
-                onLoad={() => {
-                  console.log('✅ Header avatar loaded successfully');
+                  e.target.onerror = null;
+                  e.target.src = getAvatarUrl({ name: user.name });
                 }}
               />
             </div>
             
             <div className="header-info">
               <h1>{user.name}</h1>
-              {user.experience && (
-                <p className="experience-badge">{user.experience}</p>
-              )}
+              {user.experience && <p className="experience-badge">{user.experience}</p>}
               <div className="header-meta">
-                {user.location?.city && (
-                  <span><FaMapMarkerAlt /> {user.location.city}</span>
-                )}
-                {user.gymName && (
-                  <span><FaDumbbell /> {user.gymName}</span>
-                )}
+                {user.location?.city && <span><FaMapMarkerAlt /> {user.location.city}</span>}
+                {user.gymName && <span><FaDumbbell /> {user.gymName}</span>}
               </div>
             </div>
 
@@ -223,19 +194,11 @@ const Profile = () => {
           <div className="profile-sidebar">
             <div className="info-card">
               <h3>Training Info</h3>
-              {formData.trainingVolume && (
-                <div className="info-item">
-                  <strong>Volume:</strong> {formData.trainingVolume}
-                </div>
-              )}
+              {formData.trainingVolume && <div className="info-item"><strong>Volume:</strong> {formData.trainingVolume}</div>}
               {formData.goals.length > 0 && (
                 <div className="info-item">
                   <strong>Goals:</strong>
-                  <div className="goals-list">
-                    {formData.goals.map(goal => (
-                      <span key={goal} className="goal-tag">{goal}</span>
-                    ))}
-                  </div>
+                  <div className="goals-list">{formData.goals.map(goal => <span key={goal} className="goal-tag">{goal}</span>)}</div>
                 </div>
               )}
               {formData.availability.length > 0 && (
@@ -243,13 +206,9 @@ const Profile = () => {
                   <strong>Availability:</strong>
                   <div className="availability-list">
                     {formData.availability.slice(0, 5).map((av, i) => (
-                      <span key={i} className="avail-tag">
-                        {av.day} {av.time}
-                      </span>
+                      <span key={i} className="avail-tag">{av.day} {av.time}</span>
                     ))}
-                    {formData.availability.length > 5 && (
-                      <span className="avail-tag">+{formData.availability.length - 5} more</span>
-                    )}
+                    {formData.availability.length > 5 && <span className="avail-tag">+{formData.availability.length - 5} more</span>}
                   </div>
                 </div>
               )}
@@ -257,14 +216,8 @@ const Profile = () => {
 
             <div className="info-card">
               <h3>Stats</h3>
-              {user.age && (
-                <div className="info-item">
-                  <strong>Age:</strong> {user.age}
-                </div>
-              )}
-              <div className="info-item">
-                <strong>Member since:</strong> {new Date(user.createdAt).toLocaleDateString('en-GB')}
-              </div>
+              {user.age && <div className="info-item"><strong>Age:</strong> {user.age}</div>}
+              <div className="info-item"><strong>Member since:</strong> {new Date(user.createdAt).toLocaleDateString('en-GB')}</div>
             </div>
           </div>
 
@@ -272,85 +225,40 @@ const Profile = () => {
           <div className="profile-main">
             {isEditing ? (
               <form onSubmit={handleUpdate} className="edit-form">
-                
-                {/* File Upload Section */}
                 <div className="form-group avatar-upload-group">
-    <label>Profile Photo</label>
-    <div className="avatar-upload-container">
-      {/* Preview Image */}
-      <img 
-        src={previewUrl || getAvatarUrl(formData)} 
-        alt="Preview" 
-        className="avatar-preview"
-      />
-      
-      <div className="avatar-input-wrapper">
-        {/* HIDDEN File Input */}
-        <input
-          type="file"
-          ref={fileInputRef}
-          accept="image/*"
-          onChange={handleFileChange}
-          style={{ display: 'none' }} // Hidden from view
-        />
-        
-        {/* VISIBLE Button that triggers the hidden input */}
-        <button 
-          type="button" 
-          className="btn btn-secondary" 
-          onClick={() => fileInputRef.current?.click()}
-        >
-          <FaCamera /> Choose from Device
-        </button>
-        
-        <small>JPG, PNG, GIF or WebP. Max 5MB.</small>
-        {selectedFile && (
-          <small style={{ color: '#00ff88', marginTop: '0.5rem', display: 'block' }}>
-            ✓ {selectedFile.name} ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
-          </small>
-        )}
-      </div>
-    </div>
-  </div>
+                  <label>Profile Photo</label>
+                  <div className="avatar-upload-container">
+                    <img src={previewUrl || getAvatarUrl(formData)} alt="Preview" className="avatar-preview" />
+                    <div className="avatar-input-wrapper">
+                      <input type="file" ref={fileInputRef} accept="image/*" onChange={handleFileChange} style={{ display: 'none' }} />
+                      <button type="button" className="btn btn-secondary" onClick={() => fileInputRef.current?.click()}>
+                        <FaCamera /> Choose from Device
+                      </button>
+                      <small>JPG, PNG, GIF or WebP. Max 5MB.</small>
+                      {selectedFile && <small style={{ color: '#00ff88', marginTop: '0.5rem', display: 'block' }}>✓ {selectedFile.name}</small>}
+                    </div>
+                  </div>
+                </div>
 
                 <div className="form-row">
                   <div className="form-group">
                     <label>Full Name</label>
-                    <input
-                      type="text"
-                      value={formData.name}
-                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                      required
-                    />
+                    <input type="text" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} required />
                   </div>
                   <div className="form-group">
                     <label>City</label>
-                    <input
-                      type="text"
-                      value={formData.location?.city || ''}
-                      onChange={(e) => setFormData({
-                        ...formData,
-                        location: { ...formData.location, city: e.target.value }
-                      })}
-                    />
+                    <input type="text" value={formData.location?.city || ''} onChange={(e) => setFormData({ ...formData, location: { ...formData.location, city: e.target.value } })} />
                   </div>
                 </div>
 
                 <div className="form-row">
                   <div className="form-group">
                     <label>Gym Name</label>
-                    <input
-                      type="text"
-                      value={formData.gymName || ''}
-                      onChange={(e) => setFormData({ ...formData, gymName: e.target.value })}
-                    />
+                    <input type="text" value={formData.gymName || ''} onChange={(e) => setFormData({ ...formData, gymName: e.target.value })} />
                   </div>
                   <div className="form-group">
                     <label>Experience</label>
-                    <select
-                      value={formData.experience || ''}
-                      onChange={(e) => setFormData({ ...formData, experience: e.target.value })}
-                    >
+                    <select value={formData.experience || ''} onChange={(e) => setFormData({ ...formData, experience: e.target.value })}>
                       <option value="">Select Level</option>
                       <option value="beginner">Beginner</option>
                       <option value="intermediate">Intermediate</option>
@@ -362,25 +270,11 @@ const Profile = () => {
 
                 <div className="form-group">
                   <label>Bio</label>
-                  <textarea
-                    value={formData.bio || ''}
-                    onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
-                    rows="4"
-                    placeholder="Tell us about your fitness journey..."
-                  />
+                  <textarea value={formData.bio || ''} onChange={(e) => setFormData({ ...formData, bio: e.target.value })} rows="4" placeholder="Tell us about your fitness journey..." />
                 </div>
 
                 <div className="form-actions">
-                  <button 
-                    type="button" 
-                    className="btn btn-secondary" 
-                    onClick={() => {
-                      setIsEditing(false);
-                      setSelectedFile(null);
-                      setPreviewUrl('');
-                      fetchProfile();
-                    }}
-                  >
+                  <button type="button" className="btn btn-secondary" onClick={() => { setIsEditing(false); setSelectedFile(null); setPreviewUrl(''); fetchProfile(); }}>
                     <FaTimes /> Cancel
                   </button>
                   <button type="submit" className="btn btn-primary">
@@ -395,13 +289,22 @@ const Profile = () => {
                   <p>{user.bio || 'No bio added yet. Click "Edit Profile" to tell us about yourself!'}</p>
                 </div>
 
+                {/* ✨ FIXED: Action buttons now actually work! */}
                 {!isOwnProfile && (
                   <div className="action-buttons">
-                    <button className="btn btn-primary btn-lg">
-                      Send Match Request
+                    <button 
+                      className="btn btn-primary btn-lg" 
+                      onClick={handleSendRequest}
+                      disabled={isSending}
+                      style={{ opacity: isSending ? 0.7 : 1, cursor: isSending ? 'not-allowed' : 'pointer' }}
+                    >
+                      {isSending ? 'Sending...' : <><FaPaperPlane /> Send Match Request</>}
                     </button>
-                    <button className="btn btn-secondary btn-lg">
-                      Message
+                    <button 
+                      className="btn btn-secondary btn-lg"
+                      onClick={() => toast.info('Direct messaging is coming soon! 🚀')}
+                    >
+                      <FaEnvelope /> Message
                     </button>
                   </div>
                 )}
