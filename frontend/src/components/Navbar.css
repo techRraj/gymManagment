@@ -127,3 +127,18 @@
   .mobile-menu-toggle { display: block; }
   .navbar-container { padding: 0 1rem; }
 }
+
+
+.message-badge {
+  position: absolute;
+  top: -5px;
+  right: -10px;
+  background: var(--danger);
+  color: white;
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 0.2rem 0.4rem;
+  border-radius: 10px;
+  min-width: 18px;
+  text-align: center;
+}

@@ -9,6 +9,7 @@ import Profile from './pages/Profile';
 import Matches from './pages/Matches';
 import Crews from './pages/Crews';
 import './styles/index.css';
+import Messages from './pages/Messages';
 
 function App() {
   const { user, loading } = useAuth();
@@ -29,6 +30,7 @@ function App() {
         <Route path="/" element={<Landing />} />
         <Route path="/login" element={user ? <Navigate to="/dashboard" /> : <Login />} />
         <Route path="/signup" element={user ? <Navigate to="/dashboard" /> : <Signup />} />
+        <Route path="/messages" element={user ? <Messages /> : <Navigate to="/login" />} />
         
         {/* Protected Routes - Only accessible if user is logged in */}
         <Route path="/dashboard" element={user ? <Dashboard /> : <Navigate to="/login" />} />
