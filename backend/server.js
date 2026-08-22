@@ -10,6 +10,7 @@ import userRoutes from './routes/user.routes.js';
 import matchRoutes from './routes/match.routes.js';
 import crewRoutes from './routes/crew.routes.js';
 import { handleMulterError } from './middleware/upload.js';
+import messageRoutes from './routes/message.routes.js';
 
 // ES Module __dirname fix
 const __filename = fileURLToPath(import.meta.url);
@@ -73,6 +74,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/matches', matchRoutes);
 app.use('/api/crews', crewRoutes);
+app.use('/api/messages', messageRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
