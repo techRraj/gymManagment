@@ -8,33 +8,41 @@ const generateToken = (id) => {
 
 export const register = async (req, res) => {
   try {
-    const { name, email, password, age, gender, location, goals, trainingVolume, availability, experience, bio } = req.body;
+    console.log('📝 Registration attempt for:', req.body.email);
+    const { name, email, password, age, gender, location, goals, trainingVolume, availability, experience, bio, gymName } = req.body;
 
-    // Check if user exists
+    // 1. Check if user exists
     const userExists = await User.findOne({ email });
     if (userExists) {
-      return res.status(400).json({ message: 'User already exists' });
+      return res.status(400).json({ message: 'User with this email already exists' });
     }
 
-    // Create user
+    // 2. Create user (safely handle age as Number)
     const user = await User.create({
       name,
       email,
       password,
-      age,
+      age: age ? Number(age) : undefined,
       gender,
       location,
-      goals,
+      gymName,
+      goals: goals || [],
       trainingVolume,
-      availability,
+      availability: availability || [],
       experience,
       bio,
     });
 
-    // Send welcome email
-    await sendWelcomeEmail(user);
+    console.log('✅ User created in DB:', user._id);
 
-    // Generate token
+    // 3. Send welcome email safely (won't crash the app if email fails)
+    try {
+      await sendWelcomeEmail(user);
+    } catch (emailErr) {
+      console.log('⚠️ Email failed, but user created:', emailErr.message);
+    }
+
+    // 4. Generate token
     const token = generateToken(user._id);
 
     res.status(201).json({
@@ -50,8 +58,15 @@ export const register = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Registration error:', error);
-    res.status(500).json({ message: 'Server error', error: error.message });
+    console.error('❌ Registration CRASH:', error);
+    
+    // Handle Mongoose validation errors nicely (e.g., "Age must be a number")
+    if (error.name === 'ValidationError') {
+      const messages = Object.values(error.errors).map(val => val.message);
+      return res.status(400).json({ message: messages.join(', ') });
+    }
+    
+    res.status(500).json({ message: 'Server error during registration', error: error.message });
   }
 };
 

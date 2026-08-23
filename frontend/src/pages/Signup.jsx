@@ -57,7 +57,7 @@ const Signup = () => {
     });
   };
 
-   const handleSubmit = async (e) => {
+    const handleSubmit = async (e) => {
     e.preventDefault();
     
     if (formData.password !== formData.confirmPassword) {
@@ -67,22 +67,29 @@ const Signup = () => {
 
     setLoading(true);
     try {
-      const signupData = {
+      // Prepare data, ensuring age is a Number (or undefined if blank)
+      const payload = {
         ...formData,
-        location: { city: formData.city, postcode: formData.postcode },
+        age: formData.age ? Number(formData.age) : undefined,
+        location: { 
+          city: formData.city, 
+          postcode: formData.postcode 
+        },
       };
+
+      console.log(' Sending signup payload:', payload);
       
-      // Remove confirmPassword before sending
-      delete signupData.confirmPassword;
+      await signup(payload);
       
-      await signup(signupData);
-      toast.success('Account created! Welcome to GymBrosUK ');
+      toast.success('Account created successfully! 🎉');
       navigate('/dashboard');
     } catch (error) {
-      console.error('Signup error:', error);
-      const errorMsg = error.response?.data?.message || 'Signup failed. Please try again.';
+      console.error('❌ Signup failed:', error);
+      // Extract the exact error message from the backend
+      const errorMsg = error.response?.data?.message || error.message || 'Signup failed. Please check your details.';
       toast.error(errorMsg);
     } finally {
+      // This ensures the button ALWAYS unlocks, even if there's an error
       setLoading(false);
     }
   };
