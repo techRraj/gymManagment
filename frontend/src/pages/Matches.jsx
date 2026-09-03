@@ -123,7 +123,7 @@ const Matches = () => {
         {/* Accepted Matches */}
         {acceptedMatches.length > 0 && (
           <section className="requests-section">
-            <h2>Your Active Matches 🎉</h2>
+            <h2>Your Active Matches </h2>
             <div className="requests-grid">
               {acceptedMatches.map(request => (
                 <div key={request._id} className="request-card accepted">
